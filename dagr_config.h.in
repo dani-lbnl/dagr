@@ -1,0 +1,16 @@
+#ifndef dagr_config_h
+#define dagr_config_h
+
+#cmakedefine DAGR_HAS_REGEX
+#cmakedefine DAGR_HAS_NETCDF
+#cmakedefine DAGR_HAS_MPI
+#cmakedefine DAGR_HAS_BOOST
+#cmakedefine DAGR_HAS_VTK
+#cmakedefine DAGR_HAS_PARAVIEW
+#cmakedefine DAGR_HAS_PYTHON
+#cmakedefine DAGR_HAS_LIBXLSXWRITER
+#cmakedefine DAGR_HAS_UDUNITS
+#cmakedefine DAGR_HAS_OPENSSL
+#cmakedefine DAGR_VERSION_DESCR "@DAGR_VERSION_DESCR@"
+
+#endif

@@ -1,0 +1,23 @@
+# This configuration file is used by Travis CI to build/test DAGR.
+language: c++
+sudo: required
+
+os:
+  - linux
+  - osx
+
+dist: trusty # Ubuntu 14.04.
+
+compiler:
+  - gcc
+
+install: ./test/travis_ci/install_$TRAVIS_OS_NAME.sh
+
+env:
+  - BUILD_TYPE=Debug
+#  - BUILD_TYPE=Release
+
+script: ./test/travis_ci/ctest_$TRAVIS_OS_NAME.sh
+
+after_failure:
+  - cat build/Testing/Temporary/LastTest.log
