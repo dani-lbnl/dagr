@@ -6,7 +6,7 @@ export PATH=/usr/local/bin:$PATH
 # install deps
 brew update
 brew tap Homebrew/homebrew-science
-brew install gcc openmpi python swig svn
+brew install gcc mpich python swig svn
 # brew install boost --c++11
 pip install numpy mpi4py matplotlib
 
