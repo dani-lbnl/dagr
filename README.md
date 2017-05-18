@@ -1,13 +1,10 @@
-[![Build Status](https://travis-ci.com/LBL-EESA/DAGR.svg?token=zV3LhFtYvjcvo67W2uji&branch=master)](https://travis-ci.com/LBL-EESA/DAGR)
-
 # DAGR
-
 DAGR is a scalable framework for implementing analysis pipelines using parallel
 design patterns. DAGR abstracts the pipeline concept into a state machine
 composed of connected algorithmic units. Each algorithmic unit is written to do
-a single task resulting in highly modularized, reuasble code. DAGR provides
-control, comminication, and parallelism, you provide the kernels to implement
-your analyses.
+a single task resulting in highly modularized, reusable code. **DAGR provides
+infrastructure for control, communication, and parallelism, you provide the
+kernels to implement your analyses.**
 
 Written in modern C++ and designed to leverage MPI+threading for parallelism,
 DAGR can leverage the latest HPC hardware including many-core architectures and
@@ -15,13 +12,32 @@ GPUs. The framework supports a number of parallel design patterns including
 distributed data, map-reduce, and task based parallelism.
 
 Python bindings expose optimized C++ code to those who prefer the rapid
-development of Python.  In addition DAGR is extensible via C++ or Python.
-Algorithms written natively in Python are parallelized over MPI, by adding a
-single statement to the code.
+development of Python. In addition DAGR is extensible via C, C++, Fortran,
+or Python. Algorithms written natively in Python are parallelized over MPI, by
+adding a single statement to the code.
+
+[![Build Status](https://travis-ci.org/LBL-EESA/dagr.svg?branch=master)](https://travis-ci.org/LBL-EESA/dagr)
+
+## Quick links
+1. [DAGR Concepts](#dagr-concepts)
+    1. [The pipeline state machine](#the-pipeline-state-machine)
+    2. [The algorithm](#the-algorithm)
+    3. [Metadata](#metadata)
+    4. [The data model](#the-data-model)
+    5. [Parallelism](#parallelism)
+    6. [Python](#python)
+2. [Writing DAGR algorithms](#writing-dagr-algorithms)
+    1. [Report phase](#report-phase)
+    2. [Request phase](#request-phase)
+    3. [Execute phase](#execute-phase)
+3. [An Example](#an-example)
+    1. [Pipeline Construction, Configuration and Execution](#pipeline-construction-configuration-and-execution)
+    2. [Listing 1: A command line application](#listing-1-a-command-line-application)
+    3. [Listing 2: Writing a new algorithm via delegation](#listing-2-writing-a-new-algorithm-via-delegation)
+4. [Copyright Notice](#copyright-notice)
 
 ## DAGR Concepts
-
-### The pipeline state machine: efficiency and parallelism
+### The pipeline state machine
 The DAGR framework is based on a pipeline pattern. DAGR's pipeline is a state
 machine with 3 states.
 
@@ -34,47 +50,56 @@ can be advertised before it is accessed allowing for targetted subsetting. This
 subsetting is the heart of implementing parallel design patterns such as
 map-reduce and distributed data parallelism.
 
-### The algorithm: elemental unit of work from which pipelines are composed
+### The algorithm
 The DAGR pipeline is implemented via object oriented design that abstracts the
-"algorithm" concept -- the unit from which complex analysis pipelines are
-constructed. The [DAGR algorithm](core/dagr_algorithm.h) provides the API for
+"algorithm" concept. The [DAGR algorithm](core/dagr_algorithm.h) is the unit
+from which complex analysis pipelines are constructed. It  provides the API for
 connecting other algorithms together to form complex pipelines. It implements
 the state machine logic. It provides hooks for developers to write new
 algorithms via C++ polymorphism.
 
-DAGR provides a [prgrammable algorithm](alg/dagr_programmable_algorithm.h) as
-an alternative to extending via polymorphism. The programmable algorithm instead
-is given "callables", such as a C function pointer or C++ functor, that handle
-each of the pipeline states. In many cases only the execute method need be used.
+DAGR also provides a [prgrammable algorithm](alg/dagr_programmable_algorithm.h)
+as an alternative to extending via polymorphism. The programmable algorithm
+instead is given "callables", such as a C function pointer or C++ functor, that
+handle each of the pipeline states. In many cases only the execute method need
+be used.
 
-### Metadata: inter-algorithm communication
-During pipeline execution data is first advertized, then requested, before any
-heavy computational work is done. The advertizing and requesting of data is
-accomplished via [DAGR metadata](core/dagr_metadata.h) objects. Metadata
-objects are associative container mapping string based keys to values, where
-values can be scalars, arrays of POD types, strings, or metadata objects.
-Nesting metadata objects allows for the representation of higherarchical
-structures. For example, an I/O algorithm could advertise the variables stored
-in a file by providing a key named "vars" and an array of strings into the
-report metadata object. A consumer could then request a subset of those
-variables by adding the "vars" key and an array of strings listing the desired
-variables into a request metadata object. In this approach DAGR provides the
-mechanism for inter-algorithm communication but the details are specified at
-the application level. In so doing DAGR can handle a more diverse set of use
-cases and is not hardwired for one specific application.
+### Metadata
+During pipeline execution data proucers first advertize data they can provide,
+data consumers then request specific data, before any heavy computational work
+is done. The advertizing and requesting of data is accomplished via [DAGR
+metadata](core/dagr_metadata.h) objects. Metadata objects are associative
+container mapping string based keys to values, where values can be scalars,
+arrays of POD types, strings, or nested DAGR metadata objects.  Nesting
+metadata objects allows for the representation of higherarchical structures.
 
-### Data model: inter-algorithm exchange of data
-In DAGR dataset types must derive from [DAGR dataset](core/dagr_dataset.h).
-DAGR ships with a number of common datasets such as [tabular](data/dagr_table.h)
-and [mesh](data/dagr_cartesian_mesh.h) and can be extended using polymorphism.
+With this approach DAGR provides the mechanism for inter-algorithm communication
+and coordination but the details are specified at the application level. In so
+doing DAGR can handle a more diverse set of use cases and is not hardwired for
+one specific application.
+
+For example, during report phase of execution an I/O algorithm could advertise
+the variables stored in a file by providing a key named "vars" mapping to an
+array of strings identifying the variables. A data consumer could then request
+a subset of those variables by adding the "vars" key and an array of strings
+naming the desired variables into a request metadata object. This enables
+minimal I/O and provides the mechanism for partitioning work in parallel
+execution.
+
+### The data model
+To make possible the inter-algorithm exchange of data DAGR defines an array
+based data model. In DAGR dataset types must derive from
+[DAGR dataset](core/dagr_dataset.h).  DAGR ships with a number of common datasets
+such as [tabular](data/dagr_table.h) and [mesh](data/dagr_cartesian_mesh.h) and
+can be extended using polymorphism.
 
 DAGR datasets are at the highest level collections of
 [arrays](core/dagr_variant_array.h). DAGR arrays use polymorphism to implement
 type-errassure so that arrays of different type can be contained in the same
-collection. The concrete implementation of DAGR arrays are templated and
-similar to std::vector.
+collection. The concrete implementation of DAGR arrays are templated enabling
+compilers to apply optimizations to computations on the arrays.
 
-### Parallelism:
+### Parallelism
 DAGR is designed for parallel HPC based application development. Parallelism is
 achieved by each thread making a request for a unique subset of the available
 data. The requests are then processed in parallel. DAGR supports any combination
@@ -139,7 +164,7 @@ input\_md  | reports describing available data from the next upstream algorithm,
 request    | the request being made of you.
 *return*   | requests describing data that you need to fulfill the request made of you.
 
-### Execution phase
+### Execute phase
 Algorithm developers implement this method to take produce the output dataset
 or take some desired action. Data that was requested during the request phase
 is passed in along with the request being made.
@@ -155,7 +180,7 @@ input\_data | a dataset for each request you made in the request callback in the
 request     | the request being made of you.
 *return*    |the dataset containing the requested data or the result of the requested action, if any.
 
-## Example
+## An example
 ### ![Example pipeline](doc/images/parallel_exec_sm.png)
 **Figure 1:** execution path through a simple 4 stage pipeline on any given process in an MPI
 parallel run. Time progresses from a1 to c4 through the three execution phases
@@ -177,7 +202,7 @@ configure its run time behavior. Properties are accessed by set\_<prop
 name>\(\) and get\_<prop name>\(\) methods. Once a pipeline is created and
 configured it can be run by calling update() on its last algorithm.
 
-### Listing 1: Command line application written in Python.
+### Listing 1: A command line application
 The application
 constructs, configures, and executes a 4 stage pipeline that computes basic
 descriptive statistics over the entire lat-lon mesh for a set of variables
@@ -245,7 +270,7 @@ the programmable algorithm on lines 29 and 30. Note, that we did not need to
 provide a report callback as the default implementation, which simply passes
 the report through was all that was needed.
 
-### Listing 2: Callbacks implementing DAGR pipeline state
+### Listing 2: Writing a new algorithm via delegation
 These callbacks, which are used in the above application, calculate of
 descriptive statistics over a set of variables defined out on a Cartesian
 lat-lon mesh. The request callback requests the variables, the execute callback
